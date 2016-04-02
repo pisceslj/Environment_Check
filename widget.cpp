@@ -10,13 +10,18 @@
 float Temp;
 int Hum,Conct,Light;
 
+/**
+ * @brief Widget::Widget构造函数
+ * @param parent
+ */
 Widget::Widget(QWidget *parent): QWidget(parent),ui(new Ui::Widget)
 {
-    timer4 = new QTimer(this);//定时刷新
-    timer5 = new QTimer(this);//统计运行时间
-    time_status = 1;//停止状态
-    ui->setupUi(this);
+    timer1 = new QTimer(this);//定时刷新
+    timer2 = new QTimer(this);//统计运行时间
+    time_status = 1;          //停止状态，1代表启动，0代表停止
     setFixedSize(952,700);    //固定窗口大小
+
+    //获取四个绘图显示区的高和宽
     int view_h1 = ui->graphicsView->height();
     int view_w1 = ui->graphicsView->width();
     int view_h2 = ui->graphicsView_2->height();
@@ -25,27 +30,35 @@ Widget::Widget(QWidget *parent): QWidget(parent),ui(new Ui::Widget)
     int view_w3 = ui->graphicsView_3->width();
     int view_h4 = ui->graphicsView_4->height();
     int view_w4 = ui->graphicsView_4->width();
+
+    //实例化四个绘图区对象
     myscene1 = new WaveScene(view_w1-2,view_h1-4,this);
     myscene2 = new WaveScene(view_w2-2,view_h2-4,this);
     myscene3 = new WaveScene(view_w3-2,view_h3-4,this);
     myscene4 = new WaveScene(view_w4-2,view_h4-4,this);
+
+    //在显示区里设置绘图区域
     ui->graphicsView->setScene(myscene1);
     ui->graphicsView_2->setScene(myscene2);
     ui->graphicsView_3->setScene(myscene3);
     ui->graphicsView_4->setScene(myscene4);
+
+    //为四个绘图区安装事件
     ui->widget->installEventFilter(this);
     ui->widget_2->installEventFilter(this);
     ui->widget_3->installEventFilter(this);
     ui->widget_4->installEventFilter(this);
 
+    //设置绘图和清除的槽函数（点击触发）
     connect(ui->drawButton, SIGNAL(clicked()), this, SLOT(drawClicked()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clearClicked()));
-    setWindowTitle(tr("Environment Check"));
 
-    ui->lcdNumber->setDigitCount(19); //显示格式 hh:mm:ss
+    setWindowTitle(tr("Environment Check"));          //设置窗体名称
+    ui->lcdNumber->setDigitCount(19);                 //显示格式yyyy-MM-dd hh:mm:ss
     ui->lcdNumber->setSegmentStyle(QLCDNumber::Flat); //设置时间显示字体
     ui->lcdNumber->display(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
 
+    //定义计数的时分秒
     countTemp=0;secondTemp=0;
     minuteTemp=0;hourTemp=0;
     ui->lcdNumberH->setDigitCount(2);
@@ -55,31 +68,38 @@ Widget::Widget(QWidget *parent): QWidget(parent),ui(new Ui::Widget)
     ui->lcdNumberS->setDigitCount(2);
     ui->lcdNumberS->setSegmentStyle(QLCDNumber::Flat);
 
-    connect(timer4,SIGNAL(timeout()),this,SLOT(clearline()));//定时刷新
-    connect(timer5,SIGNAL(timeout()),this,SLOT(timerUpdate()));
+    //设置计数器与计时函数的事件关联
+    connect(timer1,SIGNAL(timeout()),this,SLOT(clearline()));  //定时刷新
+    connect(timer2,SIGNAL(timeout()),this,SLOT(timerUpdate()));//统计计时
+    //设置整个UI
+    ui->setupUi(this);
 }
 
+/**
+ * @brief Widget::~Widget析构函数
+ */
 Widget::~Widget()
 {
     delete ui;
 }
 
-/*
- *鼠标双击事件
+/**
+ * @brief Widget::mouseDoubleClickEvent鼠标双击事件
+ * @param click
  */
 void Widget::mouseDoubleClickEvent(QMouseEvent *click)
 {
-    if(click->button()==Qt::LeftButton)
+    if(click->button()==Qt::LeftButton)          //鼠标左键点击
     {
-        if(windowState()!=Qt::WindowFullScreen)
-            setWindowState(Qt::WindowFullScreen);
+        if(windowState()!=Qt::WindowFullScreen)  //当前屏幕不为全屏
+            setWindowState(Qt::WindowFullScreen);//设置为全屏
         else
-            setWindowState(Qt::WindowNoState);
+            setWindowState(Qt::WindowNoState);   //否则保持不变
     }
 }
 
-/*
- *描绘波形
+/**
+ * @brief Widget::drawClicked描绘波形
  */
 void Widget::drawClicked()
 {
@@ -112,6 +132,10 @@ void Widget::drawClicked()
     ui->clearButton->setEnabled(true);
 }
 
+/**
+ * @brief Widget::clearClicked
+ * 按钮点击时触发清除所绘制图线
+ */
 void Widget::clearClicked()
 {
      myscene1->removeWave1();
@@ -125,24 +149,31 @@ void Widget::clearClicked()
 
 }
 
+/**
+ * @brief Widget::timeoutslot
+ * 计时结束槽
+ */
 void Widget::timeoutslot()
 {
      QMessageBox::information(this, tr("Warning"), tr("The return time_status is "));
 }
 
-/*
- *按键触发打开串口和链接数据库操作
+/**
+ * @brief Widget::on_openMyComBtn_clicked
+ * 按键触发打开串口和链接数据库操作
  */
 void Widget::on_openMyComBtn_clicked()
 {
-    timer4->start(2600);//刷新显示
-    timer5->start(10);//统计运行时间
+    timer1->start(2600); //刷新显示
+    timer2->start(10);   //统计运行时间
 
-    struct PortSettings myComSetting = {BAUD4800,DATA_8,PAR_NONE,STOP_1,FLOW_OFF,500};
     //定义一个结构体，用来存放串口各个参数
-    myCom = new Win_QextSerialPort("COM4",myComSetting,QextSerialBase::EventDriven);
+    struct PortSettings myComSetting = {BAUD4800,DATA_8,PAR_NONE,STOP_1,FLOW_OFF,500};
+
     //定义串口对象，并传递参数，在构造函数里对其进行初始化
-    if(myCom->open(QIODevice::ReadWrite))    //打开串口
+    myCom = new Win_QextSerialPort("COM4",myComSetting,QextSerialBase::EventDriven);
+
+    if(myCom->open(QIODevice::ReadWrite))   //打开串口
         {
             myCom->setBaudRate(BAUD4800);   //设置波特率
             myCom->setDataBits(DATA_8);     //设置数据位
@@ -155,15 +186,14 @@ void Widget::on_openMyComBtn_clicked()
     connect(myCom,SIGNAL(readyRead()),this,SLOT(readMyCom()));
     //信号和槽函数关联，当串口缓冲区有数据时，进行读串口操作
 
-    //连接数据库
+    //连接数据库驱动类型
     qDebug() << QSqlDatabase::drivers();
     //链接函数实现数据库的链接功能
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL"); //添加QSQLite数据库驱动
-    db.setHostName("127.0.0.1");
-    db.setUserName("root"); //登陆的用户是超级用户 root
-    db.setPassword(""); //登陆密码无
-    db.setDatabaseName("environment"); //打开的数据库表格，这个表格式预先创建好的。
-    qDebug() << db.lastError();
+    db.setHostName("127.0.0.1");                           //数据库主机地址
+    db.setUserName("root");                                //登陆的用户是超级用户root
+    db.setPassword("");                                    //登陆密码无
+    db.setDatabaseName("environment");                     //打开的数据库表，表预先创建。
 
     //布尔类型，打开数据。
     if(!db.open()) //if判断
@@ -177,58 +207,60 @@ void Widget::on_openMyComBtn_clicked()
      }
     ui->openMyComBtn->setEnabled(false);  //打开串口后“打开串口”按钮不可用
     ui->closeMyComBtn->setEnabled(true);  //打开串口后“关闭串口”按钮可用
-    ui->drawButton->setEnabled(true);
-    ui->stopButton->setEnabled(true);
+    ui->drawButton->setEnabled(true);     //打开串口后“开始绘图”按钮可用
+    ui->stopButton->setEnabled(true);     //打开串口后“暂停绘图”按钮可用
 }
 
-/*
- *按键触发关闭串口操作
+/**
+ * @brief Widget::on_closeMyComBtn_clicked
+ * 按键触发关闭串口操作
  */
 void Widget::on_closeMyComBtn_clicked()
 {
-    timer4->stop();//停止刷新显示
-    timer5->stop();//停止统计运行时间
+    timer1->stop();                        //停止刷新显示
+    timer2->stop();                        //停止统计运行时间
 
-    if(time_status == 1)
+    if(time_status == 1)                   //time_status=1说明在正常运行
     {
-        myscene1->qtimer_stop1();
-        myscene2->qtimer_stop2();
-        myscene3->qtimer_stop3();
-        myscene4->qtimer_stop4();
-        time_status = 0;
+        myCom->close();                    //关闭串口
+        myscene1->qtimer_stop1();          //
+        myscene2->qtimer_stop2();          //
+        myscene3->qtimer_stop3();          //停止
+        myscene4->qtimer_stop4();          //
+        time_status = 0;                   //修改运行标志
     }
-    myCom->close();
 
     ui->openMyComBtn->setEnabled(true);    //关闭串口后“打开串口”按钮可用
     ui->closeMyComBtn->setEnabled(false);  //关闭串口后“关闭串口”按钮不可用
-    ui->drawButton->setEnabled(false);
-    ui->stopButton->setEnabled(false);
-    ui->clearButton->setEnabled(false);
+    ui->drawButton->setEnabled(false);     //关闭串口后“开始绘图”按钮不可用
+    ui->stopButton->setEnabled(false);     //关闭串口后“暂停绘图”按钮不可用
+    ui->clearButton->setEnabled(false);    //关闭串口后“清除绘图”按钮不可用
 }
 
-//暂停按钮事件
+/**
+ * @brief Widget::on_stopButton_clicked
+ * 暂停按钮事件
+ */
 void Widget::on_stopButton_clicked()
 {
-    if(time_status == 0)
+    if(time_status == 0)               //time_status说明处于停止状态
      {
-         timer4->start(2700);//停止刷新
-         timer5->start(10);  //停止统计
+         timer1->start(2600);          //停止刷新
+         timer2->start(10);            //停止统计
          myscene1->qtimer_start1();
          myscene2->qtimer_start2();
          myscene3->qtimer_start3();
          myscene4->qtimer_start4();
-
-         time_status = 1;
+         time_status = 1;              //修改运行标志
      }
      else if(time_status == 1)
      {
-          timer4->stop();//停止刷新
-          timer5->stop();//停止统计
+          timer1->stop();              //停止刷新
+          timer2->stop();              //停止统计
           myscene1->qtimer_stop1();
           myscene2->qtimer_stop2();
           myscene3->qtimer_stop3();
           myscene4->qtimer_stop4();
-
           time_status = 0;
      }
     ui->stopButton->setEnabled(true);
@@ -236,7 +268,10 @@ void Widget::on_stopButton_clicked()
     ui->clearButton->setEnabled(true);
 }
 
-//显示数据
+/**
+ * @brief Widget::on_checkSqlBtn_clicked
+ * 显示数据
+ */
 void Widget::on_checkSqlBtn_clicked()
 {
     Dialog dialog;
@@ -244,14 +279,18 @@ void Widget::on_checkSqlBtn_clicked()
     dialog.exec();
 }
 
-//退出按钮事件
+/**
+ * @brief Widget::on_quitBtn_clicked
+ * 退出按钮事件
+ */
 void Widget::on_quitBtn_clicked()
 {
     this->close();
 }
 
-/*
- ***********读串口函数************
+/**
+ * @brief Widget::readMyCom
+ * 读串口函数
  */
 void Widget::readMyCom()
 {
@@ -297,8 +336,9 @@ void Widget::readMyCom()
  }
 }
 
-/*
- *清除显示
+/**
+ * @brief Widget::clearline
+ * 清除显示
  */
 void Widget::clearline()
 {
@@ -308,8 +348,12 @@ void Widget::clearline()
     ui->textBrowser_4->clear();
 }
 
-/*
- *事件过滤函数
+/**
+ * @brief Widget::eventFilter
+ * @param watched
+ * @param e
+ * @return
+ * 事件过滤函数
  */
 bool Widget::eventFilter(QObject *watched, QEvent *e)
 {  
@@ -341,8 +385,11 @@ bool Widget::eventFilter(QObject *watched, QEvent *e)
     return QWidget::eventFilter(watched, e);
 }
 
-/*
- ************绘制坐标系**************
+/**
+ * @brief Widget::paintOnWidget   绘制坐标系
+ * @param w                       绘制对象
+ * @param totalCount              Y轴的值域
+ * @param munit                   Y轴所代表单位
  */
 void Widget::paintOnWidget(QWidget *w,int totalCount,QString munit)
 {
@@ -351,7 +398,7 @@ void Widget::paintOnWidget(QWidget *w,int totalCount,QString munit)
     QFontMetrics metrics = painter.fontMetrics();
 
     int textHeight = metrics.ascent() + metrics.descent(); //textHeight = 12
-    int leftWidth = metrics.width(tr("9000")) +5;         //leftWidth = 29
+    int leftWidth = metrics.width(tr("9000")) +5;          //leftWidth  = 29
     int rightWidth = metrics.width(tr("(日)"));            //rightWidth = 24
     int width = w->size().width() - leftWidth - rightWidth;//w->size.width = 331  width = 278
     int height = w->size().height() - 4 * textHeight;      //w->size.height = 271 height = 223
@@ -399,7 +446,10 @@ void Widget::paintOnWidget(QWidget *w,int totalCount,QString munit)
     }
 }
 
-//运行多少秒
+/**
+ * @brief Widget::timerUpdate
+ * 统计运行多少秒
+ */
 void Widget::timerUpdate()
 {
     countTemp += 1;
@@ -423,15 +473,12 @@ void Widget::timerUpdate()
         }
     }
     //把整数转换成字符串
-    QString hourstr = QString::number(hourTemp);
-    QString minutestr = QString::number(minuteTemp);
-    QString secondstr = QString::number(secondTemp);
-    Display(hourstr,minutestr,secondstr);
-}
+    QString hour = QString::number(hourTemp);
+    QString minute = QString::number(minuteTemp);
+    QString second = QString::number(secondTemp);
 
-void Widget::Display(QString hour, QString minute, QString second)
-{
     ui->lcdNumberH->display(hour);
     ui->lcdNumberM->display(minute);
     ui->lcdNumberS->display(second);
 }
+

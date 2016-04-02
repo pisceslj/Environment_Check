@@ -50,13 +50,12 @@ protected:
 private:
     Ui::Widget *ui;
     int time_status;
-    QTimer *timer4;
-    QTimer *timer5;
+    QTimer *timer1;         //定时刷新
+    QTimer *timer2;         //计时
     int hourTemp;           //Hour
     int minuteTemp;         //Minute
     int secondTemp;         //Second
     int countTemp;
-    void Display(QString,QString,QString);
 
 private slots:
     void drawClicked();
